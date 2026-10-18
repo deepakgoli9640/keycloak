@@ -1,13 +1,14 @@
+
 steps:
   - name: gcr.io/cloud-builders/docker
     args:
       - build
       - -t
-      - asia-south1-docker.pkg.dev/$PROJECT_ID/keycloak-images/keycloak-event-listener:1.0.0
+      - asia-south1-docker.pkg.dev/project-7f2a8cf5-3c37-47b0-968/keycloak-images/keycloak-event-listener:1.0.0
       - .
 
 images:
-  - asia-south1-docker.pkg.dev/$PROJECT_ID/keycloak-images/keycloak-event-listener:1.0.0
+  - asia-south1-docker.pkg.dev/project-7f2a8cf5-3c37-47b0-968/keycloak-images/keycloak-event-listener:1.0.0
 
 options:
   logging: CLOUD_LOGGING_ONLY
