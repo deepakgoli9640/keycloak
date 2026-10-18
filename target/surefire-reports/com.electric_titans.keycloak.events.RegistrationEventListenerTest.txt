@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.electric_titans.keycloak.events.RegistrationEventListenerTest
+-------------------------------------------------------------------------------
+Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 9.688 s -- in com.electric_titans.keycloak.events.RegistrationEventListenerTest
