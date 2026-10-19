@@ -1,5 +1,12 @@
-
 steps:
+  # Step 1: Compile the Java application to generate the JAR file
+  - name: gcr.io/cloud-builders/mvn
+    args:
+      - clean
+      - package
+      - -DskipTests # Optional: Skips tests to speed up the pipeline
+
+  # Step 2: Build the Docker image (now target/ compiled files will exist)
   - name: gcr.io/cloud-builders/docker
     args:
       - build
