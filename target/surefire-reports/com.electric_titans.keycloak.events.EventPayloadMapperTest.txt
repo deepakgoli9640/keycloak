@@ -1,4 +1,0 @@
--------------------------------------------------------------------------------
-Test set: com.electric_titans.keycloak.events.EventPayloadMapperTest
--------------------------------------------------------------------------------
-Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.290 s -- in com.electric_titans.keycloak.events.EventPayloadMapperTest
