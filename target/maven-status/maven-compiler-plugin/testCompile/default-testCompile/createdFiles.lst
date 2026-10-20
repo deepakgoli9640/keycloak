@@ -1,3 +1,0 @@
-com\electric_titans\keycloak\events\EventPayloadMapperTest.class
-com\electric_titans\keycloak\events\RegistrationEventListenerTest.class
-com\electric_titans\keycloak\events\HttpEventWebhookDispatcherTest.class
