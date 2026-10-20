@@ -39,7 +39,7 @@ public class RegistrationEventListener implements EventListenerProvider {
                 .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
         Properties producerProperties = new Properties();
-        producerProperties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers == null || bootstrapServers.isBlank() ? "localhost:9092" : bootstrapServers);
+        producerProperties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers == null || bootstrapServers.isBlank() ? "10.160.0.2:9092" : bootstrapServers);
         producerProperties.put(ProducerConfig.ACKS_CONFIG, "all");
         producerProperties.put(ProducerConfig.RETRIES_CONFIG, 3);
         producerProperties.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);

@@ -22,7 +22,7 @@ public class RegistrationEventListenerFactory implements EventListenerProviderFa
 
     @Override
     public void init(Config.Scope config) {
-        bootstrapServers = config.get("bootstrap-servers", System.getenv().getOrDefault("KAFKA_BOOTSTRAP_SERVERS", "8.231.71.198:19092"));
+        bootstrapServers = config.get("bootstrap-servers", System.getenv().getOrDefault("KAFKA_BOOTSTRAP_SERVERS", "10.160.0.2:9092"));
         topic = config.get("topic", System.getenv().getOrDefault("IDENTITY_REGISTERED_TOPIC", "IDENTITY-REGISTERED"));
         LOG.infov("Keycloak registration listener enabled. bootstrap-servers={0}, topic={1}", bootstrapServers, topic);
     }
