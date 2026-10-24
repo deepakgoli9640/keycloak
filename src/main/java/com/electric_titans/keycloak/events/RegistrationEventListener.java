@@ -1,14 +1,19 @@
+
 package com.electric_titans.keycloak.events;
 
+import com.electric_titans.keycloak.events.IdentityRegisteredEvent;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.serialization.StringSerializer;
+
 import org.jboss.logging.Logger;
+
 import org.keycloak.events.Event;
 import org.keycloak.events.EventListenerProvider;
 import org.keycloak.events.EventType;
@@ -18,7 +23,6 @@ import org.keycloak.models.KeycloakTransaction;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
@@ -29,6 +33,8 @@ public class RegistrationEventListener implements EventListenerProvider {
             Logger.getLogger(RegistrationEventListener.class);
 
     private static final String DEFAULT_TOPIC = "IDENTITY-REGISTERED";
+
+    private static final String TYPE_ID_HEADER = "__TypeId__";
 
     private final KeycloakSession session;
     private final KafkaProducer<String, String> producer;
@@ -41,6 +47,7 @@ public class RegistrationEventListener implements EventListenerProvider {
             String topic) {
 
         this.session = session;
+
         this.topic = topic == null || topic.isBlank()
                 ? DEFAULT_TOPIC
                 : topic;
@@ -50,23 +57,28 @@ public class RegistrationEventListener implements EventListenerProvider {
                 .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
         Properties producerProperties = new Properties();
+
         producerProperties.put(
                 ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,
                 bootstrapServers == null || bootstrapServers.isBlank()
                         ? "10.160.0.2:9092"
                         : bootstrapServers
         );
+
         producerProperties.put(ProducerConfig.ACKS_CONFIG, "all");
         producerProperties.put(ProducerConfig.RETRIES_CONFIG, 3);
         producerProperties.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
+
         producerProperties.put(
                 ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION,
                 5
         );
+
         producerProperties.put(
                 ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
                 StringSerializer.class.getName()
         );
+
         producerProperties.put(
                 ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
                 StringSerializer.class.getName()
@@ -82,11 +94,13 @@ public class RegistrationEventListener implements EventListenerProvider {
 
     @Override
     public void onEvent(Event event) {
+
         if (event == null || event.getType() != EventType.REGISTER) {
             return;
         }
 
         String userId = event.getUserId();
+
         if (userId == null || userId.isBlank()) {
             LOG.warnv(
                     "Skipping registration event without a userId for event {0}",
@@ -99,26 +113,28 @@ public class RegistrationEventListener implements EventListenerProvider {
                 ? Collections.emptyMap()
                 : event.getDetails();
 
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("eventId", event.getId());
-        payload.put("eventType", "IDENTITY-REGISTERED");
-        payload.put("realmId", event.getRealmId());
-        payload.put("userId", userId);
-        payload.put("email", safe(details.get("email")));
-        payload.put("firstName", safe(details.get("firstName")));
-        payload.put("lastName", safe(details.get("lastName")));
-        payload.put("source", "keycloak");
-        payload.put("eventVersion", 1);
-        payload.put("timestamp", Instant.now());
+        IdentityRegisteredEvent payload = IdentityRegisteredEvent.builder()
+                .eventId(event.getId())
+                .eventType("IDENTITY-REGISTERED")
+                .realmId(event.getRealmId())
+                .userId(userId)
+                .email(safe(details.get("email")))
+                .firstName(safe(details.get("firstName")))
+                .lastName(safe(details.get("lastName")))
+                .source("keycloak")
+                .eventVersion(1)
+                .timestamp(Instant.now())
+                .build();
 
         try {
             String message = objectMapper.writeValueAsString(payload);
             publishAfterTransactionCommit(userId, message);
+
         } catch (Exception ex) {
             LOG.warnv(
-                    "Failed to serialize Keycloak registration event for user {0}",
+                    "Failed to serialize Keycloak registration event for user {0}: {1}",
                     userId,
-                    ex
+                    ex.getMessage()
             );
         }
     }
@@ -134,6 +150,7 @@ public class RegistrationEventListener implements EventListenerProvider {
 
         session.getTransactionManager().enlistAfterCompletion(
                 new KeycloakTransaction() {
+
                     @Override
                     public void begin() {
                     }
@@ -146,7 +163,7 @@ public class RegistrationEventListener implements EventListenerProvider {
                     @Override
                     public void rollback() {
                         LOG.warnv(
-                                "Deferring Keycloak registration event for user {0} because the transaction rolled back",
+                                "Keycloak transaction rolled back; registration event not published for user {0}",
                                 userId
                         );
                     }
@@ -168,25 +185,27 @@ public class RegistrationEventListener implements EventListenerProvider {
         );
     }
 
-
     private void publishMessage(String userId, String payload) {
+
         try {
             ProducerRecord<String, String> record =
                     new ProducerRecord<>(topic, userId, payload);
 
-            // Tell Spring Kafka that the JSON represents a generic Map.
+            // Match the type header to the shared event DTO.
             record.headers().add(
                     new RecordHeader(
-                            "__TypeId__",
-                            "java.util.LinkedHashMap"
+                            TYPE_ID_HEADER,
+                            IdentityRegisteredEvent.class
+                                    .getName()
                                     .getBytes(StandardCharsets.UTF_8)
                     )
             );
 
             producer.send(record, (metadata, exception) -> {
+
                 if (exception != null) {
                     LOG.warnv(
-                            "Failed to publish registration event for user {0} to Kafka topic {1}: {2}",
+                            "Failed to publish registration event for user {0} to topic {1}: {2}",
                             userId,
                             topic,
                             exception.getMessage()
@@ -200,16 +219,16 @@ public class RegistrationEventListener implements EventListenerProvider {
                     );
                 }
             });
+
         } catch (Exception ex) {
             LOG.warnv(
-                    "Failed to enqueue registration event for user {0} to Kafka topic {1}: {2}",
+                    "Failed to enqueue registration event for user {0} to topic {1}: {2}",
                     userId,
                     topic,
                     ex.getMessage()
             );
         }
     }
-
 
     private String safe(String value) {
         return Optional.ofNullable(value)
