@@ -6,6 +6,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.jboss.logging.Logger;
 import org.keycloak.events.Event;
@@ -14,6 +15,7 @@ import org.keycloak.events.EventType;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakTransaction;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -166,37 +168,48 @@ public class RegistrationEventListener implements EventListenerProvider {
         );
     }
 
+
     private void publishMessage(String userId, String payload) {
         try {
-            producer.send(
-                    new ProducerRecord<>(topic, userId, payload),
-                    (metadata, exception) -> {
-                        if (exception != null) {
-                            LOG.warnv(
-                                    "Failed to publish registration event for user {0} to Kafka topic {1}",
-                                    userId,
-                                    topic,
-                                    exception
-                            );
-                        } else {
-                            LOG.infov(
-                                    "Registration event published to topic {0}, partition {1}, offset {2}",
-                                    topic,
-                                    metadata.partition(),
-                                    metadata.offset()
-                            );
-                        }
-                    }
+            ProducerRecord<String, String> record =
+                    new ProducerRecord<>(topic, userId, payload);
+
+            // Tell Spring Kafka that the JSON represents a generic Map.
+            record.headers().add(
+                    new RecordHeader(
+                            "__TypeId__",
+                            "java.util.LinkedHashMap"
+                                    .getBytes(StandardCharsets.UTF_8)
+                    )
             );
+
+            producer.send(record, (metadata, exception) -> {
+                if (exception != null) {
+                    LOG.warnv(
+                            "Failed to publish registration event for user {0} to Kafka topic {1}: {2}",
+                            userId,
+                            topic,
+                            exception.getMessage()
+                    );
+                } else {
+                    LOG.infov(
+                            "Registration event published to topic {0}, partition {1}, offset {2}",
+                            topic,
+                            metadata.partition(),
+                            metadata.offset()
+                    );
+                }
+            });
         } catch (Exception ex) {
             LOG.warnv(
-                    "Failed to enqueue registration event for user {0} to Kafka topic {1}",
+                    "Failed to enqueue registration event for user {0} to Kafka topic {1}: {2}",
                     userId,
                     topic,
-                    ex
+                    ex.getMessage()
             );
         }
     }
+
 
     private String safe(String value) {
         return Optional.ofNullable(value)
