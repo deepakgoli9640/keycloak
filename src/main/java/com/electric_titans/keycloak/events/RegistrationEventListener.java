@@ -1,7 +1,6 @@
-
 package com.electric_titans.keycloak.events;
 
-import com.electric_titans.keycloak.events.IdentityRegisteredEvent;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -9,6 +8,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.serialization.StringSerializer;
 
@@ -33,8 +33,8 @@ public class RegistrationEventListener implements EventListenerProvider {
             Logger.getLogger(RegistrationEventListener.class);
 
     private static final String DEFAULT_TOPIC = "IDENTITY-REGISTERED";
-
     private static final String TYPE_ID_HEADER = "__TypeId__";
+    private static final String DEFAULT_BOOTSTRAP_SERVERS = "10.160.0.2:9092";
 
     private final KeycloakSession session;
     private final KafkaProducer<String, String> producer;
@@ -61,14 +61,13 @@ public class RegistrationEventListener implements EventListenerProvider {
         producerProperties.put(
                 ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,
                 bootstrapServers == null || bootstrapServers.isBlank()
-                        ? "10.160.0.2:9092"
+                        ? DEFAULT_BOOTSTRAP_SERVERS
                         : bootstrapServers
         );
 
         producerProperties.put(ProducerConfig.ACKS_CONFIG, "all");
         producerProperties.put(ProducerConfig.RETRIES_CONFIG, 3);
         producerProperties.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
-
         producerProperties.put(
                 ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION,
                 5
@@ -87,8 +86,11 @@ public class RegistrationEventListener implements EventListenerProvider {
         this.producer = new KafkaProducer<>(producerProperties);
 
         LOG.infov(
-                "Keycloak registration listener initialized. Topic: {0}",
-                this.topic
+                "Keycloak registration listener initialized. Topic={0}, BootstrapServers={1}",
+                this.topic,
+                bootstrapServers == null || bootstrapServers.isBlank()
+                        ? DEFAULT_BOOTSTRAP_SERVERS
+                        : bootstrapServers
         );
     }
 
@@ -103,7 +105,7 @@ public class RegistrationEventListener implements EventListenerProvider {
 
         if (userId == null || userId.isBlank()) {
             LOG.warnv(
-                    "Skipping registration event without a userId for event {0}",
+                    "Skipping registration event without userId. EventId={0}",
                     event.getId()
             );
             return;
@@ -131,10 +133,10 @@ public class RegistrationEventListener implements EventListenerProvider {
             publishAfterTransactionCommit(userId, message);
 
         } catch (Exception ex) {
-            LOG.warnv(
-                    "Failed to serialize Keycloak registration event for user {0}: {1}",
-                    userId,
-                    ex.getMessage()
+            LOG.errorv(
+                    ex,
+                    "Failed to serialize registration event. UserId={0}",
+                    userId
             );
         }
     }
@@ -163,7 +165,7 @@ public class RegistrationEventListener implements EventListenerProvider {
                     @Override
                     public void rollback() {
                         LOG.warnv(
-                                "Keycloak transaction rolled back; registration event not published for user {0}",
+                                "Keycloak transaction rolled back. Event not published. UserId={0}",
                                 userId
                         );
                     }
@@ -191,41 +193,63 @@ public class RegistrationEventListener implements EventListenerProvider {
             ProducerRecord<String, String> record =
                     new ProducerRecord<>(topic, userId, payload);
 
-            // Match the type header to the shared event DTO.
+            // Add the Spring Kafka type header explicitly.
+            String typeId = IdentityRegisteredEvent.class.getName();
+
+            record.headers().remove(TYPE_ID_HEADER);
             record.headers().add(
                     new RecordHeader(
                             TYPE_ID_HEADER,
-                            IdentityRegisteredEvent.class
-                                    .getName()
-                                    .getBytes(StandardCharsets.UTF_8)
+                            typeId.getBytes(StandardCharsets.UTF_8)
                     )
+            );
+
+            // Verify the header exists before sending.
+            Header header = record.headers().lastHeader(TYPE_ID_HEADER);
+
+            if (header == null) {
+                LOG.error("Type header is missing before Kafka send.");
+                return;
+            }
+
+            String headerValue =
+                    new String(header.value(), StandardCharsets.UTF_8);
+
+            LOG.infov(
+                    "Sending registration event. Topic={0}, UserId={1}, Header={2}, TypeId={3}",
+                    topic,
+                    userId,
+                    header.key(),
+                    headerValue
             );
 
             producer.send(record, (metadata, exception) -> {
 
                 if (exception != null) {
-                    LOG.warnv(
-                            "Failed to publish registration event for user {0} to topic {1}: {2}",
-                            userId,
+                    LOG.errorv(
+                            exception,
+                            "Kafka publish failed. Topic={0}, UserId={1}",
                             topic,
-                            exception.getMessage()
+                            userId
                     );
-                } else {
-                    LOG.infov(
-                            "Registration event published to topic {0}, partition {1}, offset {2}",
-                            topic,
-                            metadata.partition(),
-                            metadata.offset()
-                    );
+                    return;
                 }
+
+                LOG.infov(
+                        "Registration event published. Topic={0}, Partition={1}, Offset={2}, TypeId={3}",
+                        metadata.topic(),
+                        metadata.partition(),
+                        metadata.offset(),
+                        typeId
+                );
             });
 
         } catch (Exception ex) {
-            LOG.warnv(
-                    "Failed to enqueue registration event for user {0} to topic {1}: {2}",
-                    userId,
+            LOG.errorv(
+                    ex,
+                    "Failed to enqueue registration event. Topic={0}, UserId={1}",
                     topic,
-                    ex.getMessage()
+                    userId
             );
         }
     }
@@ -246,6 +270,9 @@ public class RegistrationEventListener implements EventListenerProvider {
 
     @Override
     public void close() {
-        producer.close();
+        if (producer != null) {
+            producer.close();
+            LOG.info("Kafka producer closed.");
+        }
     }
 }
