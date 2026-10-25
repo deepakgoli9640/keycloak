@@ -117,7 +117,7 @@
                             <goal>copy-dependencies</goal>
                         </goals>
                         <configuration>
-                            <outputDirectory>${project.build.directory}/provider</outputDirectory>
+                            <outputDirectory>${project.build.directory}/providers</outputDirectory>
                             <includeScope>runtime</includeScope>
                             <excludeArtifactIds>keycloak-server-spi,keycloak-server-spi-private,keycloak-core,jboss-logging</excludeArtifactIds>
                         </configuration>
