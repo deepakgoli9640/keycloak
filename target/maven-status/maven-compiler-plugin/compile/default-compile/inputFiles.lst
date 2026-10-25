@@ -1,6 +1,7 @@
 C:\Users\deepa\Documents\Health Care Financial Services platform\keycloak-registration-listener\src\main\java\com\electric_titans\keycloak\events\EventPayloadMapper.java
 C:\Users\deepa\Documents\Health Care Financial Services platform\keycloak-registration-listener\src\main\java\com\electric_titans\keycloak\events\EventWebhookDispatcher.java
 C:\Users\deepa\Documents\Health Care Financial Services platform\keycloak-registration-listener\src\main\java\com\electric_titans\keycloak\events\HttpEventWebhookDispatcher.java
+C:\Users\deepa\Documents\Health Care Financial Services platform\keycloak-registration-listener\src\main\java\com\electric_titans\keycloak\events\IdentityRegisteredEvent.java
 C:\Users\deepa\Documents\Health Care Financial Services platform\keycloak-registration-listener\src\main\java\com\electric_titans\keycloak\events\JsonWriter.java
 C:\Users\deepa\Documents\Health Care Financial Services platform\keycloak-registration-listener\src\main\java\com\electric_titans\keycloak\events\PlatformWebhookEventListenerProvider.java
 C:\Users\deepa\Documents\Health Care Financial Services platform\keycloak-registration-listener\src\main\java\com\electric_titans\keycloak\events\PlatformWebhookEventListenerProviderFactory.java
