@@ -1,12 +1,10 @@
 com\electric_titans\keycloak\events\EventPayloadMapper.class
-com\electric_titans\keycloak\events\JsonWriter.class
-com\electric_titans\keycloak\events\IdentityRegisteredEvent.class
-com\electric_titans\keycloak\events\RegistrationEventListenerFactory.class
-com\electric_titans\keycloak\events\IdentityRegisteredEvent$Builder.class
-com\electric_titans\keycloak\events\HttpEventWebhookDispatcher.class
-com\electric_titans\keycloak\events\RegistrationEventListener.class
 com\electric_titans\keycloak\events\PlatformWebhookEventListenerProviderFactory.class
+com\electric_titans\keycloak\events\JsonWriter.class
 com\electric_titans\keycloak\events\EventWebhookDispatcher.class
+com\electric_titans\keycloak\events\RegistrationEventListenerFactory.class
 com\electric_titans\keycloak\events\RegistrationEventListener$1.class
+com\electric_titans\keycloak\events\HttpEventWebhookDispatcher.class
 com\electric_titans\keycloak\events\PlatformWebhookEventListenerProvider.class
+com\electric_titans\keycloak\events\RegistrationEventListener.class
 com\electric_titans\keycloak\events\WebhookSettings.class
